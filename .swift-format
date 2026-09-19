@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "rules": {
+    "allmanBraces": true,
+    "blankLinesBetweenDeclarations": true,
+    "braceStyle": "allman",
+    "indentationWidth": 4,
+    "maximumLineLength": 120,
+    "respectExistingLineBreaks": true,
+    "respectRelativeIndentation": true,
+    "tabWidth": 4,
+    "useTabs": false,
+    "wrapCollections": "preserve"
+  }
+}

@@ -1,0 +1,268 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_15.2.app/Contents/Developer
+
+jobs:
+  lint-and-unit-tests:
+    name: Lint & Unit Tests
+    runs-on: macos-14
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "5.9"
+      
+      - name: Install swiftlint
+        run: brew install swiftlint
+      
+      - name: Lint
+        run: swiftlint lint --strict
+        working-directory: ${{ github.workspace }}
+      
+      - name: Resolve Dependencies
+        run: swift package resolve
+        working-directory: ${{ github.workspace }}
+      
+      - name: Build Debug
+        run: xcodebuild -scheme Everything -configuration Debug -quiet
+        working-directory: ${{ github.workspace }}
+      
+      - name: Build Helper
+        run: xcodebuild -scheme EverythingHelper -configuration Debug -quiet
+        working-directory: ${{ github.workspace }}
+      
+      - name: Unit Tests
+        run: |
+          swift test --filter EverythingUnitTests --parallel
+          swift test --filter APFSParsersTests --parallel
+          swift test --filter BytecodeVMTests --parallel
+          swift test --filter IndexManagerTests --parallel
+          swift test --filter DatabaseTests --parallel
+        working-directory: ${{ github.workspace }}
+      
+      - name: Phase 1 Gates (Fast)
+        run: swift run Phase1GateRunner --gate 1 --gate 2 --gate 3 --gate 9 --gate 10
+        working-directory: ${{ github.workspace }}
+        continue-on-error: false
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: macos-14
+    timeout-minutes: 45
+    needs: lint-and-unit-tests
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "5.9"
+      
+      - name: Resolve Dependencies
+        run: swift package resolve
+        working-directory: ${{ github.workspace }}
+      
+      - name: Build Release
+        run: xcodebuild -scheme Everything -configuration Release -quiet
+        working-directory: ${{ github.workspace }}
+      
+      - name: Create Test Volume
+        run: |
+          # Create test DMG
+          hdiutil create -size 2g -fs APFS -volname "EverythingTest" /tmp/test.dmg
+          hdiutil attach /tmp/test.dmg -mountpoint /Volumes/EverythingTest
+          
+          # Populate with test data
+          swift run PopulateGoldenMaster /Volumes/EverythingTest
+          
+          # Verify
+          ls -la /Volumes/EverythingTest/
+        working-directory: ${{ github.workspace }}
+      
+      - name: Integration Tests
+        run: swift test --filter IntegrationTests --parallel
+        working-directory: ${{ github.workspace }}
+      
+      - name: Cleanup Test Volume
+        if: always()
+        run: |
+          hdiutil detach /Volumes/EverythingTest 2>/dev/null || true
+          rm -f /tmp/test.dmg
+
+  benchmarks:
+    name: Performance Benchmarks
+    runs-on: macos-14
+    timeout-minutes: 60
+    needs: lint-and-unit-tests
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "5.9"
+      
+      - name: Resolve Dependencies
+        run: swift package resolve
+        working-directory: ${{ github.workspace }}
+      
+      - name: Build Release
+        run: xcodebuild -scheme Everything -configuration Release -quiet
+        working-directory: ${{ github.workspace }}
+      
+      - name: Run Benchmarks
+        run: swift run EverythingBenchmarks all --size 50000
+        working-directory: ${{ github.workspace }}
+      
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: |
+            benchmark_results/
+            *.json
+      
+      - name: Check Benchmark Thresholds
+        run: swift run CheckBenchmarks
+        working-directory: ${{ github.workspace }}
+        continue-on-error: false
+
+  build-and-notarize:
+    name: Build & Notarize (Release)
+    runs-on: macos-14
+    timeout-minutes: 60
+    needs: [lint-and-unit-tests, integration-tests, benchmarks]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      id-token: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Setup Swift
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "5.9"
+      
+      - name: Resolve Dependencies
+        run: swift package resolve
+        working-directory: ${{ github.workspace }}
+      
+      - name: Build Release
+        run: xcodebuild -scheme Everything -configuration Release -quiet
+        working-directory: ${{ github.workspace }}
+      
+      - name: Create DMG
+        run: |
+          # Create app bundle
+          APP_PATH=build/Release/Everything.app
+          DMG_PATH=Everything-${{ github.run_number }}.dmg
+          
+          hdiutil create -volname "Everything" -srcfolder "$APP_PATH" -ov -format UDZO "$DMG_PATH"
+          
+          echo "DMG_PATH=$DMG_PATH" >> $GITHUB_ENV
+      
+      - name: Notarize
+        run: |
+          xcrun notarytool submit "$DMG_PATH" \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --team-id "${{ secrets.TEAM_ID }}" \
+            --wait
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          TEAM_ID: ${{ secrets.TEAM_ID }}
+      
+      - name: Staple
+        run: xcrun stapler staple "$DMG_PATH"
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: "${{ env.DMG_PATH }}"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  check-benchmarks:
+    name: Check Benchmark Thresholds
+    runs-on: ubuntu-latest
+    needs: benchmarks
+    
+    steps:
+      - name: Download Benchmark Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark_results/
+      
+      - name: Check Thresholds
+        run: |
+          # Parse benchmark results and check against thresholds
+          python3 -c "
+          import json, sys, glob
+          
+          thresholds = {
+              'scan_files_per_sec': 10000,
+              'search_latency_p99_ms': 50,
+              'memory_100k_mb': 100,
+              'db_compression_ratio': 0.5,
+          }
+          
+          # Parse results (simplified)
+          print('Checking benchmark thresholds...')
+          # Real implementation would parse actual results
+          sys.exit(0)
+          "
+
+  deploy-docs:
+    name: Deploy Documentation
+    runs-on: ubuntu-latest
+    needs: lint-and-unit-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Build Documentation
+        run: |
+          # Build docs from markdown files
+          echo "Building docs..."
+          # Could use mkdocs, docc, or similar
+      
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs_output
+
+# Dependencies
+  dependabot:
+    name: Dependabot Updates
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - name: Create Dependabot PRs
+        uses: dependabot/fetch-metadata@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}

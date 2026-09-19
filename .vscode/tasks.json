@@ -1,0 +1,315 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Everything Debug",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "build",
+                "--product", "Everything",
+                "-c", "debug"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$swift"],
+            "detail": "Build Everything app in debug mode"
+        },
+        {
+            "label": "Build EverythingHelper Debug",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "build",
+                "--product", "EverythingHelper",
+                "-c", "debug"
+            ],
+            "group": "build",
+            "problemMatcher": ["$swift"],
+            "detail": "Build EverythingHelper in debug mode"
+        },
+        {
+            "label": "Build All Debug",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "build",
+                "-c", "debug"
+            ],
+            "group": "build",
+            "problemMatcher": ["$swift"],
+            "detail": "Build all targets in debug mode"
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "build",
+                "-c", "release"
+            ],
+            "group": "build",
+            "problemMatcher": ["$swift"],
+            "detail": "Build all targets in release mode"
+        },
+        {
+            "label": "Build Tests Debug",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "build",
+                "--product", "EverythingUnitTests",
+                "-c", "debug"
+            ],
+            "group": "test",
+            "problemMatcher": ["$swift"],
+            "detail": "Build unit tests in debug mode"
+        },
+        {
+            "label": "Run Unit Tests",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "test",
+                "--filter", "EverythingUnitTests",
+                "--parallel"
+            ],
+            "group": "test",
+            "problemMatcher": ["$swift"],
+            "detail": "Run all unit tests"
+        },
+        {
+            "label": "Run Integration Tests",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "test",
+                "--filter", "IntegrationTests",
+                "--parallel"
+            ],
+            "group": "test",
+            "problemMatcher": ["$swift"],
+            "detail": "Run integration tests"
+        },
+        {
+            "label": "Run Phase 1 Gates",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "all", "--fail-fast"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run all Phase 1 validation gates"
+        },
+        {
+            "label": "Run Benchmarks",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "EverythingBenchmarks", "all", "--size", "50000"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run all performance benchmarks"
+        },
+        {
+            "label": "Run Lint",
+            "type": "shell",
+            "command": "swiftlint",
+            "args": ["lint", "--strict"],
+            "group": "build",
+            "problemMatcher": ["$swiftlint"],
+            "detail": "Run SwiftLint with strict rules"
+        },
+        {
+            "label": "Format Code",
+            "type": "shell",
+            "command": "swift-format",
+            "args": [
+                "-r", "--in-place", "Sources", "Tests", "Scripts", "Phase1GateRunner"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Format code with swift-format"
+        },
+        {
+            "label": "Clean Build Artifacts",
+            "type": "shell",
+            "command": "swift",
+            "args": ["package", "clean"],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Clean Swift build artifacts"
+        },
+        {
+            "label": "Install Helper",
+            "type": "shell",
+            "command": "sudo",
+            "args": [
+                "${workspaceFolder}/.build/debug/Everything",
+                "--install-helper"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Install privileged helper (requires sudo)"
+        },
+        {
+            "label": "Uninstall Helper",
+            "type": "shell",
+            "command": "sudo",
+            "args": [
+                "${workspaceFolder}/.build/debug/Everything",
+                "--uninstall-helper"
+            ],
+            "group": "build",
+            "problemMatcher": [],
+            "detail": "Uninstall privileged helper (requires sudo)"
+        },
+        {
+            "label": "Generate Golden Master",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "PopulateGoldenMaster"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Generate golden master test volume"
+        },
+        {
+            "label": "Run Phase 1 Gate 1",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate1"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 1: Helper Installation"
+        },
+        {
+            "label": "Run Phase 1 Gate 2",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate2"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 2: XPC Connection"
+        },
+        {
+            "label": "Run Phase 1 Gate 3",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate3"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 3: Volume Enumeration"
+        },
+        {
+            "label": "Run Phase 1 Gate 4",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate4"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 4: Raw Device Access"
+        },
+        {
+            "label": "Run Phase 1 Gate 5",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate5"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 5: Superblock Parsing"
+        },
+        {
+            "label": "Run Phase 1 Gate 6",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate6"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 6: OMAP Resolution"
+        },
+        {
+            "label": "Run Phase 1 Gate 7",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate7"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 7: FS-Tree Iteration"
+        },
+        {
+            "label": "Run Phase 1 Gate 8",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate8"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 8: Record Parsing"
+        },
+        {
+            "label": "Run Phase 1 Gate 9",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate9"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 9: Index Build"
+        },
+        {
+            "label": "Run Phase 1 Gate 10",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate10"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 10: Name Search"
+        },
+        {
+            "label": "Run Phase 1 Gate 11",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate11"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 11: Persistence"
+        },
+        {
+            "label": "Run Phase 1 Gate 12",
+            "type": "shell",
+            "command": "swift",
+            "args": [
+                "run", "Phase1GateRunner", "gate12"
+            ],
+            "group": "test",
+            "problemMatcher": [],
+            "detail": "Run Gate 12: Memory Budget"
+        }
+    ]
+}

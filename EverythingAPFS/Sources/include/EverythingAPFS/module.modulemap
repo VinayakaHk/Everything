@@ -1,0 +1,7 @@
+module EverythingAPFS {
+    header "apfs_structs.h"
+    export *
+    
+    // Link with the implementation
+    link "EverythingAPFS"
+}
